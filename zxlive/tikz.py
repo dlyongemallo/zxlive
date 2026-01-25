@@ -16,14 +16,16 @@ def proof_to_tikz(proof: ProofModel) -> str:
     yoffset = -10
     idoffset = 0
     total_verts, total_edges = [], []
+    prev_height = 0.0
     for i, g in enumerate(proof.graphs()):
         # Compute graph dimensions
         width = max(g.row(v) for v in g.vertices()) - min(g.row(v) for v in g.vertices())
         height = max(g.qubit(v) for v in g.vertices()) - min(g.qubit(v) for v in g.vertices())
 
-        # Translate graph so that the first vertex starts at 0
+        # Translate graph so that vertices start at the origin.
         min_x = min(g.row(v) for v in g.vertices())
-        g_t = g.translate(-min_x, 0)
+        min_y = min(g.qubit(v) for v in g.vertices())
+        g_t = g.translate(-min_x, -min_y)
         assert isinstance(g_t, GraphT)
         g = g_t
 
@@ -31,7 +33,9 @@ def proof_to_tikz(proof: ProofModel) -> str:
             rewrite = proof.steps[i - 1]
             # Try to look up name in settings
             name = settings.value(f"tikz/names/{rewrite.rule}") if settings.contains(f"tikz/names/{rewrite.rule}") else rewrite.rule
-            eq = f"\\node [style=none] ({idoffset}) at ({xoffset - hspace/2:.2f}, {-yoffset - height/2:.2f}) {{$\\mathrel{{\\mathop{{=}}\\limits^{{\\mathit{{{name}}}}}}}$}};"
+            # Use the max of prev_height and current height to centre the equal sign.
+            eq_height = max(prev_height, height)
+            eq = f"\\node [style=none] ({idoffset}) at ({xoffset - hspace/2:.2f}, {-yoffset - eq_height/2:.2f}) {{$\\mathrel{{\\mathop{{=}}\\limits^{{\\mathit{{{name}}}}}}}$}};"
             total_verts.append(eq)
             idoffset += 1
 
@@ -47,5 +51,6 @@ def proof_to_tikz(proof: ProofModel) -> str:
 
         max_index = max(g.vertices()) + 2 * g.num_inputs() + 2
         idoffset += max_index
+        prev_height = height
 
     return TIKZ_BASE.format(vertices="\n".join(total_verts), edges="\n".join(total_edges))
