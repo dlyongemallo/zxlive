@@ -353,42 +353,22 @@ class MainWindow(QMainWindow):
         tabs_state = []
         for i in range(self.tab_widget.count()):
             panel = self.tab_widget.widget(i)
+            assert isinstance(panel, BasePanel)
             tab_name = self.tab_widget.tabText(i)
 
+            tab_data: dict = {
+                'name': tab_name,
+                'file_path': panel.file_path,
+                'file_type': panel.file_type.value if panel.file_type else None,
+            }
             if isinstance(panel, GraphEditPanel):
-                tab_data = {
-                    'type': 'graph',
-                    'name': tab_name,
-                    'graph': panel.graph.to_json(),
-                    'file_path': panel.file_path,
-                    'file_type': panel.file_type.value if panel.file_type else None,
-                }
+                tab_data.update({'type': 'graph', 'data': panel.graph.to_json()})
             elif isinstance(panel, ProofPanel):
-                tab_data = {
-                    'type': 'proof',
-                    'name': tab_name,
-                    'proof': panel.proof_model.to_json(),
-                    'file_path': panel.file_path,
-                    'file_type': panel.file_type.value if panel.file_type else None,
-                }
+                tab_data.update({'type': 'proof', 'data': panel.proof_model.to_json()})
             elif isinstance(panel, RulePanel):
-                rule = panel.get_rule()
-                tab_data = {
-                    'type': 'rule',
-                    'name': tab_name,
-                    'rule': rule.to_json(),
-                    'file_path': panel.file_path,
-                    'file_type': panel.file_type.value if panel.file_type else None,
-                }
+                tab_data.update({'type': 'rule', 'data': panel.get_rule().to_json()})
             elif isinstance(panel, PauliWebsPanel):
-                # For Pauli webs, we just save the initial graph
-                tab_data = {
-                    'type': 'pauliwebs',
-                    'name': tab_name,
-                    'graph': panel.graph.to_json(),
-                    'file_path': panel.file_path,
-                    'file_type': panel.file_type.value if panel.file_type else None,
-                }
+                tab_data.update({'type': 'pauliwebs', 'data': panel.graph.to_json()})
             else:
                 continue  # Unknown panel type, skip
 
@@ -431,11 +411,11 @@ class MainWindow(QMainWindow):
 
                 try:
                     if tab_type == 'graph':
-                        graph: GraphT = BaseGraph.from_json(tab_data['graph'])  # type: ignore
+                        graph: GraphT = BaseGraph.from_json(tab_data['data'])  # type: ignore
                         self.new_graph(graph, tab_name)
                     elif tab_type == 'proof':
                         from .proof import ProofModel
-                        proof_model = ProofModel.from_json(tab_data['proof'])
+                        proof_model = ProofModel.from_json(tab_data['data'])
                         # Extract the initial graph from the proof
                         graphs_list = proof_model.graphs()
                         initial_graph: GraphT = graphs_list[0] if graphs_list else new_graph()
@@ -446,10 +426,10 @@ class MainWindow(QMainWindow):
                         panel.start_pauliwebs_signal.connect(self.new_pauli_webs)
                         self._new_panel(panel, tab_name)
                     elif tab_type == 'rule':
-                        rule = CustomRule.from_json(tab_data['rule'])
+                        rule = CustomRule.from_json(tab_data['data'])
                         self.new_rule_editor(rule, tab_name)
                     elif tab_type == 'pauliwebs':
-                        pauli_graph: GraphT = BaseGraph.from_json(tab_data['graph'])  # type: ignore
+                        pauli_graph: GraphT = BaseGraph.from_json(tab_data['data'])  # type: ignore
                         self.new_pauli_webs(pauli_graph, tab_name)
 
                     # Restore file path and file type if available
