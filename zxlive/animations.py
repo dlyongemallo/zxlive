@@ -302,7 +302,17 @@ def make_animation(self: RewriteAction, panel: ProofPanel, g: GraphT, matches: l
         anim_before = QParallelAnimationGroup()
         for v in rem_verts:
             anim_before.addAnimation(remove_id(panel.graph_scene.vertex_map[v]))
-    elif self.name == rules_basic['copy']['text'] or self.name == rules_basic['pauli']['text']:
+    elif self.name == rules_basic['copy']['text']:
+        anim_before = QParallelAnimationGroup()
+        for v in matches:
+            w = list(panel.graph.neighbors(v))[0]
+            anim_before.addAnimation(fuse(panel.graph_scene.vertex_map[v],
+                                          panel.graph_scene.vertex_map[w]))
+        anim_after = QParallelAnimationGroup()
+        for v in matches:
+            w = list(panel.graph.neighbors(v))[0]
+            anim_after.addAnimation(strong_comp(panel.graph, g, w, panel.graph_scene))
+    elif self.name == rules_basic['pauli']['text']:
         anim_before = QParallelAnimationGroup()
         for m in matches:
             anim_before.addAnimation(fuse(panel.graph_scene.vertex_map[m[0]],
