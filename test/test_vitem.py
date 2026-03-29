@@ -56,3 +56,74 @@ def test_dummy_label_position(qtbot: QtBot) -> None:
     svg_rect = vitem_latex._dummy_svg_renderer.viewBoxF()
     expected_svg_y = node_top - gap - svg_rect.height()
     assert vitem_latex.dummy_svg_item.pos().y() == pytest.approx(expected_svg_y)
+
+
+def test_boundary_phase_cleared_on_refresh(qtbot: QtBot) -> None:
+    """Test that boundary vertices never display stale phase labels.
+
+    Regression test for #462.
+    """
+    from zxlive.common import new_graph
+
+    g = new_graph()
+    v = g.add_vertex(VertexType.BOUNDARY, qubit=0, row=0)
+
+    scene = GraphScene()
+    scene.set_graph(g)
+    vitem = scene.vertex_map[v]
+
+    assert vitem.phase_item.toPlainText() == ""
+
+    vitem.phase_item.setPlainText("π/4")
+    assert vitem.phase_item.toPlainText() == "π/4"
+
+    vitem.phase_item.refresh()
+    assert vitem.phase_item.toPlainText() == ""
+
+
+def test_boundary_io_labels_preserved_on_refresh(qtbot: QtBot) -> None:
+    """Test that I/O labels on boundary vertices survive a refresh.
+    """
+    from zxlive.common import new_graph
+
+    g = new_graph()
+    v_in = g.add_vertex(VertexType.BOUNDARY, qubit=0, row=0)
+    v_out = g.add_vertex(VertexType.BOUNDARY, qubit=1, row=2)
+
+    scene = GraphScene()
+    scene.set_graph(g)
+
+    scene.vertex_map[v_in].phase_item.setPlainText("in-0")
+    scene.vertex_map[v_out].phase_item.setPlainText("out-0")
+
+    scene.vertex_map[v_in].phase_item.refresh()
+    scene.vertex_map[v_out].phase_item.refresh()
+
+    assert scene.vertex_map[v_in].phase_item.toPlainText() == "in-0"
+    assert scene.vertex_map[v_out].phase_item.toPlainText() == "out-0"
+
+
+def test_boundary_phase_cleared_after_type_change(qtbot: QtBot) -> None:
+    """Test that changing a vertex from Z to BOUNDARY clears its phase label.
+
+    Simulates scenario where incremental graph update changes vertex's type from
+    Z to BOUNDARY. The PhaseItem text set for the Z spider must be cleared.
+    """
+    from fractions import Fraction
+    from zxlive.common import new_graph
+
+    g = new_graph()
+    v = g.add_vertex(VertexType.Z, qubit=0, row=0, phase=Fraction(1, 4))
+
+    scene = GraphScene()
+    scene.set_graph(g)
+    vitem = scene.vertex_map[v]
+    assert vitem.phase_item.toPlainText() != ""
+
+    new_g = new_graph()
+    new_v = new_g.add_vertex(VertexType.BOUNDARY, qubit=0, row=0)
+
+    scene.update_graph(new_g)
+
+    new_vitem = scene.vertex_map[new_v]
+    assert new_vitem.phase_item.toPlainText() == ""

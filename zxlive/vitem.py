@@ -611,7 +611,13 @@ class PhaseItem(QGraphicsTextItem):
         vertex_type = self.v_item.ty
         if vertex_type == VertexType.Z_BOX:
             self.setPlainText(str(get_z_box_label(self.v_item.g, self.v_item.v)))
-        elif vertex_type != VertexType.BOUNDARY:
+        elif vertex_type == VertexType.BOUNDARY:
+            # Clear stale phase labels, but preserve I/O labels
+            # (e.g. "in-0", "out-1") set by the rule editor.
+            current = self.toPlainText()
+            if not (current.startswith("in-") or current.startswith("out-")):
+                self.setPlainText("")
+        else:
             phase = self.v_item.g.phase(self.v_item.v)
             self.setPlainText(phase_to_s(phase, vertex_type))
         p = self.v_item.pos()
