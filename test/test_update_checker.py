@@ -25,19 +25,19 @@ def test_version_comparison() -> None:
 
 def test_should_check_for_updates_no_previous_check() -> None:
     """Test that update check is needed when there's no previous check."""
-    settings = QSettings("zxlive-test", "zxlive-test")
-    settings.clear()  # Clear any existing settings
+    settings = QSettings("zxlive", "zxlive")
+    settings.remove("last-update-check")
 
     checker = UpdateChecker("0.3.1", settings)
     assert checker.should_check_for_updates()
 
-    settings.clear()
+    settings.remove("last-update-check")
 
 
 def test_should_check_for_updates_recent_check() -> None:
     """Test that update check is not needed when recently checked."""
-    settings = QSettings("zxlive-test", "zxlive-test")
-    settings.clear()
+    settings = QSettings("zxlive", "zxlive")
+    settings.remove("last-update-check")
 
     # Set last check to now
     from zxlive.common import set_settings_value
@@ -46,13 +46,13 @@ def test_should_check_for_updates_recent_check() -> None:
     checker = UpdateChecker("0.3.1", settings)
     assert not checker.should_check_for_updates()
 
-    settings.clear()
+    settings.remove("last-update-check")
 
 
 def test_should_check_for_updates_old_check() -> None:
     """Test that update check is needed when last check was long ago."""
-    settings = QSettings("zxlive-test", "zxlive-test")
-    settings.clear()
+    settings = QSettings("zxlive", "zxlive")
+    settings.remove("last-update-check")
 
     # Set last check to 2 days ago
     from zxlive.common import set_settings_value
@@ -62,7 +62,7 @@ def test_should_check_for_updates_old_check() -> None:
     checker = UpdateChecker("0.3.1", settings)
     assert checker.should_check_for_updates()
 
-    settings.clear()
+    settings.remove("last-update-check")
 
 
 def test_update_checker_initialization() -> None:
