@@ -1,5 +1,0 @@
-# Install all development dependencies with: pip install -e ".[test,doc]"
-# Or install specific extras with: pip install -e ".[test]" or pip install -e ".[doc]"
-
-# This file is provided for compatibility and mirrors pyproject.toml's [test] and [doc] extras:
--e .[test,doc]
