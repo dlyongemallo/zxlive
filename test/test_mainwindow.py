@@ -430,6 +430,60 @@ def test_auto_arrange_in_proof_mode(app: MainWindow, qtbot: QtBot) -> None:
     assert (proof_graph.row(spider_v), proof_graph.qubit(spider_v)) == spider_after
 
 
+def _new_two_spider_proof_panel(app: MainWindow, qtbot: QtBot) -> tuple[ProofPanel, int, int]:
+    # Open a proof panel on a small graph with two internal Z spiders and return their ids.
+    app.close_action.trigger()
+    g = new_graph()
+    inp = g.add_vertex(VertexType.BOUNDARY, qubit=0, row=0)
+    s1 = g.add_vertex(VertexType.Z, qubit=0, row=1)
+    s2 = g.add_vertex(VertexType.Z, qubit=0, row=2)
+    out = g.add_vertex(VertexType.BOUNDARY, qubit=0, row=3)
+    g.add_edge((inp, s1))
+    g.add_edge((s1, s2))
+    g.add_edge((s2, out))
+    g.set_inputs((inp,))
+    g.set_outputs((out,))
+    app.new_graph(g)
+    assert isinstance(app.active_panel, GraphEditPanel)
+    qtbot.mouseClick(app.active_panel.start_derivation, QtCore.Qt.MouseButton.LeftButton)
+    assert isinstance(app.active_panel, ProofPanel)
+    return app.active_panel, s1, s2
+
+
+def test_proof_mode_command_preserves_selection(app: MainWindow, qtbot: QtBot) -> None:
+    # `ProofModeCommand` calls `move_to_step` (which rebuilds the scene) and may wrap commands
+    # like `SetGraph` that also rebuild the scene; both paths previously wiped the selection.
+    # The snapshotted selection should survive both undo and redo regardless of the wrapped
+    # command. Also, on the first redo the view is already on the target step, so the scene
+    # rebuild should be skipped (verified via `VItem` instance reuse).
+    import copy
+    from zxlive.commands import ProofModeCommand, SetGraph
+    panel, s1, s2 = _new_two_spider_proof_panel(app, qtbot)
+    panel.graph_scene.select_vertices([s1, s2])
+    vitem_s1_before = panel.graph_scene.vertex_map[s1]
+
+    panel._vert_moved([(s1, 5.0, 0.0)])
+    assert panel.graph_scene.vertex_map[s1] is vitem_s1_before
+    for action in (app.undo_action, app.redo_action, app.undo_action):
+        action.trigger()
+        assert set(panel.graph_view.graph_scene.selected_vertices) == {s1, s2}
+
+    new_g = copy.deepcopy(panel.graph_scene.g)
+    extra_v = new_g.add_vertex(VertexType.Z, qubit=2, row=2)
+    step_index = panel.step_view.currentIndex().row()
+    panel.undo_stack.push(ProofModeCommand(SetGraph(panel.graph_view, new_g), panel.step_view))
+    # The proof model's stored graph for the step must stay in sync with the view, even when
+    # the wrapped command (here `SetGraph`) doesn't itself keep `self.g` updated.
+    assert set(panel.graph_view.graph_scene.selected_vertices) == {s1, s2}
+    assert extra_v in panel.proof_model.get_graph(step_index).vertices()
+    app.undo_action.trigger()
+    assert set(panel.graph_view.graph_scene.selected_vertices) == {s1, s2}
+    assert extra_v not in panel.proof_model.get_graph(step_index).vertices()
+    app.redo_action.trigger()
+    assert set(panel.graph_view.graph_scene.selected_vertices) == {s1, s2}
+    assert extra_v in panel.proof_model.get_graph(step_index).vertices()
+
+
 def test_proof_cleanup_before_close(app: MainWindow, qtbot: QtBot) -> None:
     # Regression test to check that the app doesn't crash when closing a proof tab with a derivation in progress,
     # due to accessing the graph after it has been deallocated.

@@ -69,16 +69,37 @@ class ProofModeCommand(QUndoCommand):
         self.command = command
         self.step_view = step_view
         self.proof_step_index = int(step_view.currentIndex().row())
+        # Snapshot the selection at construction so we can restore it after operations that
+        # would otherwise drop it (`move_to_step`, and wrapped commands like `SetGraph` that
+        # rebuild the scene).
+        self._initial_selection = set(command.graph_view.graph_scene.selected_vertices)
+
+    def _ensure_on_step(self) -> None:
+        # On the first `redo` after construction the view is already on the target step, so
+        # skip `move_to_step` to avoid an unnecessary scene rebuild.
+        if int(self.step_view.currentIndex().row()) != self.proof_step_index:
+            self.step_view.move_to_step(self.proof_step_index)
+
+    def _restore_selection_if_lost(self) -> None:
+        # Only restore when the selection is gone, so we don't clobber wrapped commands like
+        # `UpdateGraph(select_new=True)` that intentionally manage the selection themselves.
+        if not self._initial_selection:
+            return
+        scene = self.command.graph_view.graph_scene
+        if not set(scene.selected_vertices):
+            scene.select_vertices(self._initial_selection)
 
     def undo(self) -> None:
-        self.step_view.move_to_step(self.proof_step_index)
+        self._ensure_on_step()
         self.command.undo()
         self.step_view.model().set_graph(self.proof_step_index, self.command.g)
+        self._restore_selection_if_lost()
 
     def redo(self) -> None:
-        self.step_view.move_to_step(self.proof_step_index)
+        self._ensure_on_step()
         self.command.redo()
         self.step_view.model().set_graph(self.proof_step_index, self.command.g)
+        self._restore_selection_if_lost()
 
 
 @dataclass
@@ -89,10 +110,12 @@ class SetGraph(BaseCommand):
 
     def undo(self) -> None:
         assert self.old_g is not None
+        self.g = self.old_g
         self.graph_view.set_graph(self.old_g)
 
     def redo(self) -> None:
         self.old_g = self.graph_view.graph_scene.g
+        self.g = self.new_g
         self.graph_view.set_graph(self.new_g)
 
 
