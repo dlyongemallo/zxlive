@@ -1,4 +1,4 @@
-name: Nightly Rolling Release
+name: Rolling Release
 on:
   push:
     branches: [ master ]
@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: nightly-${{ github.ref }}
+  group: rolling-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build_nightly:
+  build_rolling:
     strategy:
       fail-fast: false
       matrix:
@@ -34,23 +34,23 @@ jobs:
           name: compiled-binaries-${{ matrix.os }}
           path: zxlive_*
 
-  publish_nightly:
-    needs: build_nightly
+  publish_rolling:
+    needs: build_rolling
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Update Nightly Tag
+      - name: Update Rolling Tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -f nightly
-          git push origin -f nightly
+          git tag -f rolling
+          git push origin -f rolling
       - uses: actions/download-artifact@v4
         with:
           path: release_assets
           merge-multiple: true
       - uses: softprops/action-gh-release@v1
         with:
-          tag_name: nightly
+          tag_name: rolling
           prerelease: true
           files: release_assets/*
