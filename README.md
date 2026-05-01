@@ -14,6 +14,8 @@ This project is in a pretty early stage, with lots more to come. Have a look at 
 
 ## Instructions
 
+To install the latest stable release, you can download the binaries from the [releases page](https://github.com/zxcalc/zxlive/releases).
+
 To install from source, you need Python >= 3.9 and pip. If you have those, just run:
 
     git clone https://github.com/zxcalc/zxlive.git
